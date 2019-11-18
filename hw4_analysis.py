@@ -48,11 +48,11 @@ selected_features = [
     "yrsqual",
     "earnmthbonusppp",
     "earnhrbonusppp",
-   "nfe12jr",
-   "nfe12njr",
-   "fnfe12jr",
-   "fnfaet12jr",
-   "fnfaet12njr",
+    "nfe12jr",
+    "nfe12njr",
+    "fnfe12jr",
+    "fnfaet12jr",
+    "fnfaet12njr",
     "readytolearn",
     "icthome",
     "ictwork",
@@ -64,6 +64,9 @@ selected_features = [
     "writhome",
     "writwork",
     "edcat7",
+    "leavedu",
+#    "nfehrsnjr",
+    "isco2c"
 ]
 
 cleanup = {
@@ -105,18 +108,26 @@ cleanup = {
     }
 }
 
+cleanup_int = {
+    "isco2c" : {
+        9999: np.nan,
+        9996: np.nan,
+    } 
+}
+
 df1 = df[selected_features].copy()
 df1['edcat7'] = df1['edcat7'].str.replace('[^\x00-\x7F]','')
 int_df = df1.select_dtypes(include=["float64", "int64"]).copy()
+int_df.replace(cleanup_int, inplace=True)
 
 # fill mean in integer columns
 int_df.fillna(int_df.mean(), inplace=True)
+print(int_df)
 
 ord_cat = ["nfe12jr", "nfe12njr", "fnfaet12jr", "fnfaet12njr", "fnfe12jr"]
 #cat_obj = ["v31", "ctryqual", "edcat7", "v200"]
 cat_obj = ["v31", "v200", "edcat7"] + ord_cat
 obj_df = df1.select_dtypes(include=["object"]).copy()
-
 obj_df.replace(cleanup, inplace=True)
 
 # fill in median
@@ -138,14 +149,14 @@ df_init = pd.concat([int_df, obj_df], axis=1)
 
 # print(df_init)
 target = df["job_performance"]
-print(target.median())
+# print(target.median())
 
 # train and test set
-# x_train = df_init[:-4000]
-# x_test = df_init[-4000:]
+x_train = df_init[:-4000]
+x_test = df_init[-4000:]
 
-# y_train = target[:-4000]
-# y_test = target[-4000:]
+y_train = target[:-4000]
+y_test = target[-4000:]
 
 # # Create linear regression object
 # regr = linear_model.LinearRegression()
@@ -178,43 +189,43 @@ print(target.median())
 ####################################
 
 ######
-# pipelines = []
-# pipelines.append(
-#     ("ScaledLR", Pipeline([("Scaler", StandardScaler()), ("LR", LinearRegression())]))
-# )
-# pipelines.append(
-#     ("ScaledLASSO", Pipeline([("Scaler", StandardScaler()), ("LASSO", Lasso())]))
-# )
-# pipelines.append(
-#     ("ScaledEN", Pipeline([("Scaler", StandardScaler()), ("EN", ElasticNet())]))
-# )
-# pipelines.append(
-#     (
-#         "ScaledKNN",
-#         Pipeline([("Scaler", StandardScaler()), ("KNN", KNeighborsRegressor())]),
-#     )
-# )
-# pipelines.append(
-#     (
-#         "ScaledCART",
-#         Pipeline([("Scaler", StandardScaler()), ("CART", DecisionTreeRegressor())]),
-#     )
-# )
-# pipelines.append(
-#     (
-#         "ScaledGBM",
-#         Pipeline([("Scaler", StandardScaler()), ("GBM", GradientBoostingRegressor())]),
-#     )
-# )
+pipelines = []
+pipelines.append(
+    ("ScaledLR", Pipeline([("Scaler", StandardScaler()), ("LR", LinearRegression())]))
+)
+pipelines.append(
+    ("ScaledLASSO", Pipeline([("Scaler", StandardScaler()), ("LASSO", Lasso())]))
+)
+pipelines.append(
+    ("ScaledEN", Pipeline([("Scaler", StandardScaler()), ("EN", ElasticNet())]))
+)
+pipelines.append(
+    (
+        "ScaledKNN",
+        Pipeline([("Scaler", StandardScaler()), ("KNN", KNeighborsRegressor())]),
+    )
+)
+pipelines.append(
+    (
+        "ScaledCART",
+        Pipeline([("Scaler", StandardScaler()), ("CART", DecisionTreeRegressor())]),
+    )
+)
+pipelines.append(
+    (
+        "ScaledGBM",
+        Pipeline([("Scaler", StandardScaler()), ("GBM", GradientBoostingRegressor())]),
+    )
+)
 
-# results = []
-# names = []
-# for name, model in pipelines:
-#     kfold = KFold(n_splits=10, random_state=15)
-#     cv_results = cross_val_score(
-#         model, x_train, y_train, cv=kfold, scoring="neg_mean_squared_error"
-#     )
-#     results.append(cv_results)
-#     names.append(name)
-#     msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
-#     print(msg)
+results = []
+names = []
+for name, model in pipelines:
+    kfold = KFold(n_splits=10, random_state=15)
+    cv_results = cross_val_score(
+        model, x_train, y_train, cv=kfold, scoring="neg_mean_squared_error"
+    )
+    results.append(cv_results)
+    names.append(name)
+    msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
+    print(msg)
