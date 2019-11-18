@@ -36,23 +36,16 @@ from sklearn.ensemble import GradientBoostingRegressor
 # Init Dataframes
 df = pd.read_csv("hw4-trainingset-pw2440.csv")
 # Columns (50,172,255,256,257,258,268,280,376) have mixed types.
-print(df.select_dtypes(include=["float64", "int64"]))
+#print(df.select_dtypes(include=["float64", "int64"]))
 
 selected_features = [
     "age_r",
-    "v200",
+    "gender_r",
     "v231",
     "v272",
-    "v31",
-    # "ctryqual",
     "yrsqual",
     "earnmthbonusppp",
     "earnhrbonusppp",
-    "nfe12jr",
-    "nfe12njr",
-    "fnfe12jr",
-    "fnfaet12jr",
-    "fnfaet12njr",
     "readytolearn",
     "icthome",
     "ictwork",
@@ -63,11 +56,18 @@ selected_features = [
     "taskdisc",
     "writhome",
     "writwork",
-    "edcat7",
     "leavedu",
-#    "nfehrsnjr",
-    "isco2c"
+   "nfehrsnjr",
+   "isco2c",
+
 ]
+
+# v77	v123	v141	v24	v193	v275	v204	v108	v164	v166	v197	v34	v42	v292	v131
+ord_cat = ["nfe12jr", "nfe12njr", "fnfaet12jr", "fnfaet12njr", "fnfe12jr", "gender_r"]
+cat_obj = ["v200", "edcat7", "v191", "v170", "v65", "v57", "v177", "v69", "v85", "v50", "v123", "v141", "v24", "v193", "v275",
+"v31", "v77", "v198", 'v204', 'v108', 'v164', 'v166', 'v197', 'v34', 'v42', 'v292', 'v131', 'v139', 'v247', 'v99', 'v180', 'v124', 'v51',
+'v190','v248','v229','v189','v165','v173','v134','v2','v25','v18','v216','v178','v282','v13','v233','v278','v103','v155']
+selected_features += ord_cat + cat_obj
 
 cleanup = {
     # "v200": {
@@ -105,6 +105,10 @@ cleanup = {
         "Tertiary - bachelor/master/research degree (ISCED 5A/6)" : 6.0,
         "Tertiary  master/research degree (ISCED 5A/6)" : 7.0,
         "Tertiary  professional degree (ISCED 5B)" : 8.0,
+    },
+    "gender_r": {
+        "Male" : 0,
+        "Female" : 1,
     }
 }
 
@@ -122,27 +126,37 @@ int_df.replace(cleanup_int, inplace=True)
 
 # fill mean in integer columns
 int_df.fillna(int_df.mean(), inplace=True)
-print(int_df)
+#print(int_df)
 
-ord_cat = ["nfe12jr", "nfe12njr", "fnfaet12jr", "fnfaet12njr", "fnfe12jr"]
 #cat_obj = ["v31", "ctryqual", "edcat7", "v200"]
-cat_obj = ["v31", "v200", "edcat7"] + ord_cat
+# cat_obj += ord_cat
 obj_df = df1.select_dtypes(include=["object"]).copy()
 obj_df.replace(cleanup, inplace=True)
 
+# print(obj_df.isna().sum())
+
 # fill in median
 for i in ord_cat:
-    obj_df[i].fillna(obj_df[i].median(), inplace=True)
+    obj_df[i] = obj_df[i].fillna(obj_df[i].median())
 
 # # fill in mode
+# for i in cat_obj:
+#     obj_df[i] = obj_df[i].astype('category')
+#     obj_df[i] = obj_df[i].cat.codes
+#     obj_df[i].replace(to_replace ="-1", 
+#                  value=obj_df[i].mode(), inplace=True) 
+
 for i in cat_obj:
-    obj_df[i].fillna(obj_df[i].mode()[0], inplace=True)
+    obj_df[i] = obj_df[i].fillna(obj_df[i].value_counts().idxmax())
+
+# print(obj_df.isna().sum())
+# print(obj_df)
 
 # obj_df = obj_df.astype({'edcat7': 'int32', 'v200': 'int32', 'fnfe12jr': 'int32'})
 # obj_df = obj_df.astype({'v200': 'int32', 'fnfe12jr': 'int32'})
 
 # one hot
-obj_df = pd.get_dummies(obj_df, columns=cat_obj)
+obj_df = pd.get_dummies(obj_df, columns=cat_obj, dummy_na=True)
 df_init = pd.concat([int_df, obj_df], axis=1)
 
 # df_init = int_df
@@ -150,6 +164,12 @@ df_init = pd.concat([int_df, obj_df], axis=1)
 # print(df_init)
 target = df["job_performance"]
 # print(target.median())
+
+# from sklearn.decomposition import PCA
+# pca = PCA(n_components=60, svd_solver='randomized')
+# reduced_features = pca.fit_transform(df_init)
+# df_init = pd.DataFrame(data=reduced_features)
+
 
 # train and test set
 x_train = df_init[:-4000]
@@ -188,44 +208,60 @@ y_test = target[-4000:]
 # print("MSE: %.4f" % mse)
 ####################################
 
-######
-pipelines = []
-pipelines.append(
-    ("ScaledLR", Pipeline([("Scaler", StandardScaler()), ("LR", LinearRegression())]))
-)
-pipelines.append(
-    ("ScaledLASSO", Pipeline([("Scaler", StandardScaler()), ("LASSO", Lasso())]))
-)
-pipelines.append(
-    ("ScaledEN", Pipeline([("Scaler", StandardScaler()), ("EN", ElasticNet())]))
-)
-pipelines.append(
-    (
-        "ScaledKNN",
-        Pipeline([("Scaler", StandardScaler()), ("KNN", KNeighborsRegressor())]),
-    )
-)
-pipelines.append(
-    (
-        "ScaledCART",
-        Pipeline([("Scaler", StandardScaler()), ("CART", DecisionTreeRegressor())]),
-    )
-)
-pipelines.append(
-    (
-        "ScaledGBM",
-        Pipeline([("Scaler", StandardScaler()), ("GBM", GradientBoostingRegressor())]),
-    )
-)
+#######Decision Tree Regression######
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import mean_squared_error
 
-results = []
-names = []
-for name, model in pipelines:
-    kfold = KFold(n_splits=10, random_state=15)
-    cv_results = cross_val_score(
-        model, x_train, y_train, cv=kfold, scoring="neg_mean_squared_error"
-    )
-    results.append(cv_results)
-    names.append(name)
-    msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
-    print(msg)
+regr_tree = DecisionTreeRegressor()
+
+# regr_tree.fit(x_train, y_train)
+# mse = mean_squared_error(y_test, regr_tree.predict(x_test))
+# print("MSE: %.4f" % mse)
+
+kfold = KFold(n_splits=10, random_state=15)
+cv_results = cross_val_score(regr_tree, df_init, target, scoring="neg_mean_squared_error", cv=kfold)
+print(cv_results.mean())
+
+
+######
+# pipelines = []
+# pipelines.append(
+#     ("ScaledLR", Pipeline([("Scaler", StandardScaler()), ("LR", LinearRegression())]))
+# )
+# pipelines.append(
+#     ("ScaledLASSO", Pipeline([("Scaler", StandardScaler()), ("LASSO", Lasso())]))
+# )
+# pipelines.append(
+#     ("ScaledEN", Pipeline([("Scaler", StandardScaler()), ("EN", ElasticNet())]))
+# )
+# pipelines.append(
+#     (
+#         "ScaledKNN",
+#         Pipeline([("Scaler", StandardScaler()), ("KNN", KNeighborsRegressor())]),
+#     )
+# )
+# pipelines.append(
+#     (
+#         "ScaledCART",
+#         Pipeline([("Scaler", StandardScaler()), ("CART", DecisionTreeRegressor())]),
+#     )
+# )
+# pipelines.append(
+#     (
+#         "ScaledGBM",
+#         Pipeline([("Scaler", StandardScaler()), ("GBM", GradientBoostingRegressor())]),
+#     )
+# )
+
+# results = []
+# names = []
+# for name, model in pipelines:
+#     kfold = KFold(n_splits=10, random_state=15)
+#     cv_results = cross_val_score(
+#         model, df_init, target, cv=kfold, scoring="neg_mean_squared_error"
+#     )
+#     results.append(cv_results)
+#     names.append(name)
+#     msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
+#     print(msg)
