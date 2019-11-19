@@ -20,23 +20,10 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 
-# Integer
-# 'age_r', 'v231', 'v272', 'earnmthbonusppp', 'readytolearn', 'icthome',
-#       'ictwork', 'influence', 'planning', 'readhome', 'readwork', 'taskdisc',
-#       'writhome', 'writwork'
-#
-# replace (ordinal or binary categories)
-# v200, fnfe12jr, edcat7
-#
-# one hot
-# ["v31", "ctryqual"]
-#
-
 
 # Init Dataframes
 df = pd.read_csv("hw4-trainingset-pw2440.csv")
 # Columns (50,172,255,256,257,258,268,280,376) have mixed types.
-#print(df.select_dtypes(include=["float64", "int64"]))
 
 selected_features = [
     "age_r",
@@ -57,16 +44,20 @@ selected_features = [
     "writhome",
     "writwork",
     "leavedu",
-   "nfehrsnjr",
-   "isco2c",
-
+    "nfehrsnjr",
+    "isco2c",
+    "isco1c",
 ]
 
+# v90	v157	v74	v153
+
 # v77	v123	v141	v24	v193	v275	v204	v108	v164	v166	v197	v34	v42	v292	v131
-ord_cat = ["nfe12jr", "nfe12njr", "fnfaet12jr", "fnfaet12njr", "fnfe12jr", "gender_r"]
+ord_cat = ["nfe12jr", "nfe12njr", "fnfaet12jr", "fnfaet12njr", "fnfe12jr", "gender_r"] #, "v90", "v157", "v74", "v153"]
 cat_obj = ["v200", "edcat7", "v191", "v170", "v65", "v57", "v177", "v69", "v85", "v50", "v123", "v141", "v24", "v193", "v275",
 "v31", "v77", "v198", 'v204', 'v108', 'v164', 'v166', 'v197', 'v34', 'v42', 'v292', 'v131', 'v139', 'v247', 'v99', 'v180', 'v124', 'v51',
-'v190','v248','v229','v189','v165','v173','v134','v2','v25','v18','v216','v178','v282','v13','v233','v278','v103','v155']
+'v190','v248','v229','v189','v165','v173','v134','v2','v25','v18','v216','v178','v282','v13','v233','v278','v103','v155', 'nopaidworkever',
+'paidwork12', 'iscoskil4']
+
 selected_features += ord_cat + cat_obj
 
 cleanup = {
@@ -109,23 +100,44 @@ cleanup = {
     "gender_r": {
         "Male" : 0,
         "Female" : 1,
-    }
+    },
+    # "v90": {
+    #     "Yes": 1,
+    #     "No": 0,
+    # },
+    # "v157":{
+    #     "Yes": 1,
+    #     "No": 0,
+    # },
+    # "v74":{
+    #     "Yes": 1,
+    #     "No": 0,
+    # },
+    # "v153":{
+    #     "Yes": 1,
+    #     "No": 0,
+    # },
 }
 
 cleanup_int = {
     "isco2c" : {
         9999: np.nan,
         9996: np.nan,
-    } 
+    },
+    "isco1c" : {
+        9999: np.nan,
+        9996: np.nan,
+    },
 }
 
 df1 = df[selected_features].copy()
 df1['edcat7'] = df1['edcat7'].str.replace('[^\x00-\x7F]','')
 int_df = df1.select_dtypes(include=["float64", "int64"]).copy()
 int_df.replace(cleanup_int, inplace=True)
-
 # fill mean in integer columns
 int_df.fillna(int_df.mean(), inplace=True)
+print(int_df['v231'].dtypes)
+# print(int_df)
 #print(int_df)
 
 #cat_obj = ["v31", "ctryqual", "edcat7", "v200"]
@@ -146,6 +158,8 @@ for i in ord_cat:
 #     obj_df[i].replace(to_replace ="-1", 
 #                  value=obj_df[i].mode(), inplace=True) 
 
+
+# vectorize this
 for i in cat_obj:
     obj_df[i] = obj_df[i].fillna(obj_df[i].value_counts().idxmax())
 
@@ -157,26 +171,22 @@ for i in cat_obj:
 
 # one hot
 obj_df = pd.get_dummies(obj_df, columns=cat_obj, dummy_na=True)
-df_init = pd.concat([int_df, obj_df], axis=1)
 
+df_init = pd.concat([int_df, obj_df], axis=1)
 # df_init = int_df
 
 # print(df_init)
 target = df["job_performance"]
 # print(target.median())
 
+# print(obj_df.dtypes)
+
 # from sklearn.decomposition import PCA
-# pca = PCA(n_components=60, svd_solver='randomized')
+# pca = PCA(n_components=300, svd_solver='randomized')
 # reduced_features = pca.fit_transform(df_init)
 # df_init = pd.DataFrame(data=reduced_features)
 
-
-# train and test set
-x_train = df_init[:-4000]
-x_test = df_init[-4000:]
-
-y_train = target[:-4000]
-y_test = target[-4000:]
+x_train, x_test, y_train, y_test = train_test_split(df_init, target, test_size = 0.20)
 
 # # Create linear regression object
 # regr = linear_model.LinearRegression()
@@ -219,10 +229,9 @@ regr_tree = DecisionTreeRegressor()
 # mse = mean_squared_error(y_test, regr_tree.predict(x_test))
 # print("MSE: %.4f" % mse)
 
-kfold = KFold(n_splits=10, random_state=15)
+kfold = KFold(n_splits=20, random_state=25)
 cv_results = cross_val_score(regr_tree, df_init, target, scoring="neg_mean_squared_error", cv=kfold)
 print(cv_results.mean())
-
 
 ######
 # pipelines = []
