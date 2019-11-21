@@ -23,6 +23,7 @@ from sklearn.ensemble import GradientBoostingRegressor
 
 # Init Dataframes
 df = pd.read_csv("hw4-trainingset-pw2440.csv")
+df_test = pd.read_csv("hw4-testset-pw2440.csv")
 # Columns (50,172,255,256,257,258,268,280,376) have mixed types.
 
 selected_features = [
@@ -131,78 +132,53 @@ cleanup_int = {
 }
 
 df1 = df[selected_features].copy()
+df1_test = df_test[selected_features].copy()
+
 df1['edcat7'] = df1['edcat7'].str.replace('[^\x00-\x7F]','')
+df1_test['edcat7'] = df1_test['edcat7'].str.replace('[^\x00-\x7F]','')
+
 int_df = df1.select_dtypes(include=["float64", "int64"]).copy()
 int_df.replace(cleanup_int, inplace=True)
+int_df_test = df1_test.select_dtypes(include=["float64", "int64"]).copy()
+int_df_test.replace(cleanup_int, inplace=True)
+
 # fill mean in integer columns
 int_df.fillna(int_df.mean(), inplace=True)
-print(int_df['v231'].dtypes)
-# print(int_df)
-#print(int_df)
+int_df_test.fillna(int_df_test.mean(), inplace=True)
 
-#cat_obj = ["v31", "ctryqual", "edcat7", "v200"]
-# cat_obj += ord_cat
 obj_df = df1.select_dtypes(include=["object"]).copy()
 obj_df.replace(cleanup, inplace=True)
-
-# print(obj_df.isna().sum())
+obj_df_test = df1_test.select_dtypes(include=["object"]).copy()
+obj_df_test.replace(cleanup, inplace=True)
 
 # fill in median
 for i in ord_cat:
     obj_df[i] = obj_df[i].fillna(obj_df[i].median())
-
-# # fill in mode
-# for i in cat_obj:
-#     obj_df[i] = obj_df[i].astype('category')
-#     obj_df[i] = obj_df[i].cat.codes
-#     obj_df[i].replace(to_replace ="-1", 
-#                  value=obj_df[i].mode(), inplace=True) 
-
+    obj_df_test[i] = obj_df_test[i].fillna(obj_df_test[i].median())
 
 # vectorize this
 for i in cat_obj:
     obj_df[i] = obj_df[i].fillna(obj_df[i].value_counts().idxmax())
-
-# print(obj_df.isna().sum())
-# print(obj_df)
-
-# obj_df = obj_df.astype({'edcat7': 'int32', 'v200': 'int32', 'fnfe12jr': 'int32'})
-# obj_df = obj_df.astype({'v200': 'int32', 'fnfe12jr': 'int32'})
+    obj_df_test[i] = obj_df_test[i].fillna(obj_df_test[i].value_counts().idxmax())
 
 # one hot
 obj_df = pd.get_dummies(obj_df, columns=cat_obj, dummy_na=True)
+obj_df_test = pd.get_dummies(obj_df_test, columns=cat_obj, dummy_na=True)
 
 df_init = pd.concat([int_df, obj_df], axis=1)
-# df_init = int_df
+df_init_test = pd.concat([int_df_test, obj_df_test], axis=1)
 
-# print(df_init)
 target = df["job_performance"]
-# print(target.median())
+print(df_init.shape)
 
-# print(obj_df.dtypes)
+
 
 # from sklearn.decomposition import PCA
-# pca = PCA(n_components=300, svd_solver='randomized')
+# pca = PCA(n_components=320, svd_solver='randomized')
 # reduced_features = pca.fit_transform(df_init)
 # df_init = pd.DataFrame(data=reduced_features)
 
 x_train, x_test, y_train, y_test = train_test_split(df_init, target, test_size = 0.20)
-
-# # Create linear regression object
-# regr = linear_model.LinearRegression()
-
-# # Train the model using the training sets
-# regr.fit(df_init_x_train, df_init_y_train)
-
-# # Make predictions using the testing set
-# df_y_pred = regr.predict(df_init_x_test)
-
-# # The coefficients
-# print("Coefficients: \n", regr.coef_)
-# # The mean squared error
-# print("Mean squared error: %.2f" % mean_squared_error(df_init_y_test, df_y_pred))
-# # Explained variance score: 1 is perfect prediction
-# print("Variance score: %.2f" % r2_score(df_init_y_test, df_y_pred))
 
 ##### gradient boosted alg #######
 # from sklearn import ensemble
@@ -232,6 +208,11 @@ regr_tree = DecisionTreeRegressor()
 kfold = KFold(n_splits=20, random_state=25)
 cv_results = cross_val_score(regr_tree, df_init, target, scoring="neg_mean_squared_error", cv=kfold)
 print(cv_results.mean())
+
+# regr_tree.fit(df_init, target)
+# df_test['job_performance'] = regr_tree.predict(df_init_test)
+# print(df_test['job_performance'].describe())
+# print(df['job_performance'].describe())
 
 ######
 # pipelines = []
